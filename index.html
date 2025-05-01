@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DermaLuxury Pro - Advanced AI Skin Analysis Tool for Professional Skincare Assessment">
+    <title>DermaLuxury Pro | AI Skin Analysis</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <!-- Face-api.js for face detection fallback -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js" defer></script>
+</head>
+<body>
+    <div class="glow-effect top-left" aria-hidden="true"></div>
+    <div class="glow-effect bottom-right" aria-hidden="true"></div>
+    
+    <main class="container">
+        <header>
+            <div class="logo-container">
+                <h1 class="animate__animated animate__fadeIn">DERMA<span>LUXURY</span></h1>
+                <div class="logo-accent" aria-hidden="true"></div>
+            </div>
+            <p class="subtitle animate__animated animate__fadeIn animate__delay-1s">PRECISION AI SKIN ANALYSIS</p>
+        </header>
+
+        <!-- iOS help text will appear here for iOS users -->
+        <div class="ios-help" id="ios-help" role="alert" hidden>
+            ⚠️ <strong>iOS Users:</strong> If camera doesn't appear, check browser settings and ensure camera permissions are allowed for this site.
+        </div>
+
+        <section class="video-container animate__animated animate__fadeIn" aria-label="Camera Interface">
+            <div class="video-wrapper">
+                <video id="video" autoplay muted playsinline></video>
+                <div class="scan-line" aria-hidden="true"></div>
+                <div class="corner top-left" aria-hidden="true"></div>
+                <div class="corner top-right" aria-hidden="true"></div>
+                <div class="corner bottom-left" aria-hidden="true"></div>
+                <div class="corner bottom-right" aria-hidden="true"></div>
+                
+                <!-- Face positioning guidance overlay -->
+                <div class="face-guidance" aria-live="polite">
+                    <div class="face-oval" aria-hidden="true"></div>
+                    <div class="guidance-text">POSITION FACE IN TARGET</div>
+                </div>
+                
+                <!-- Face detection status -->
+                <div id="face-status" class="face-status" aria-live="polite">
+                    <i class="fas fa-search" aria-hidden="true"></i> SCANNING...
+                </div>
+                
+                <!-- HUD elements -->
+                <div class="hud-element top-left-hud" aria-hidden="true">DERMALUXURY</div>
+                <div class="hud-element top-right-hud" aria-hidden="true">PRO</div>
+                <div class="hud-element bottom-left-hud" aria-hidden="true">v2.5</div>
+                <div class="hud-element bottom-right-hud" aria-hidden="true">LIVE</div>
+                
+                <!-- Permission notice for iOS -->
+                <div class="permission-notice" id="permission-notice" role="alert" hidden>
+                    <h3><i class="fas fa-camera" aria-hidden="true"></i> Camera Access Required</h3>
+                    <p>DermaLuxury Pro needs camera access to analyze your skin.</p>
+                    <p>Please tap "Allow" when prompted for camera permissions.</p>
+                    <button class="permission-btn" id="tryAgainBtn" type="button">
+                        <i class="fas fa-sync-alt" aria-hidden="true"></i> Try Again
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="button-container">
+            <button id="captureBtn" class="luxury-btn animate__animated animate__fadeIn animate__delay-1s" disabled aria-label="Analyze Skin">
+                <div class="btn-bg" aria-hidden="true"></div>
+                <span class="btn-content">
+                    <i class="fas fa-camera" aria-hidden="true"></i>
+                    <span>ANALYZE SKIN</span>
+                </span>
+            </button>
+        </section>
+
+        <section class="result-container" aria-label="Analysis Results">
+            <div class="image-result">
+                <img id="preview" class="hidden" alt="Skin analysis preview">
+                <canvas id="canvas" aria-label="Analysis canvas"></canvas>
+                <!-- Result image overlay HUD elements -->
+                <div class="result-hud top-left-result-hud hidden" aria-hidden="true">CAPTURED</div>
+                <div class="result-hud top-right-result-hud hidden" aria-hidden="true">PROCESSING</div>
+                <div class="result-hud bottom-right-result-hud hidden" aria-hidden="true">DATA</div>
+            </div>
+            <div class="analysis-result animate__animated animate__fadeIn">
+                <div class="result-card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-line" aria-hidden="true"></i> ANALYSIS RESULTS</h3>
+                    </div>
+                    <div id="loader" class="hidden" aria-live="polite">
+                        <div class="spinner" aria-hidden="true"></div>
+                        <p>ANALYZING IMAGE DATA</p>
+                        <div class="progress-bar" aria-label="Analysis progress">
+                            <div class="progress"></div>
+                        </div>
+                    </div>
+                    <div id="result" class="result-text" aria-live="polite">AWAITING SKIN ANALYSIS</div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="animate__animated animate__fadeIn animate__delay-2s">
+            <div class="footer-content">
+                <p>POWERED BY <span class="highlight">ADVANCED AI ANALYSIS</span></p>
+                <div class="footer-accent" aria-hidden="true"></div>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const permissionNotice = document.getElementById('permission-notice');
+        const tryAgainBtn = document.getElementById('tryAgainBtn');
+        const iosHelp = document.getElementById('ios-help');
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        
+        if (isIOS) {
+            // Show iOS help text
+            iosHelp.hidden = false;
+            
+            // Add iOS specific event listener for camera permission issues
+            document.addEventListener('touchstart', function initialTouch() {
+                const video = document.getElementById('video');
+                // This can help trigger permission prompts on iOS
+                if (video.paused && video.srcObject) {
+                    video.play().catch(e => console.log('Video play from touch event:', e));
+                }
+                document.removeEventListener('touchstart', initialTouch);
+            });
+        }
+        
+        if (tryAgainBtn) {
+            tryAgainBtn.addEventListener('click', () => {
+                permissionNotice.hidden = true;
+                // This will trigger camera setup retry in main script
+                if (window.retryCamera) {
+                    window.retryCamera();
+                }
+            });
+        }
+        
+        // Handle iOS orientation changes
+        window.addEventListener('orientationchange', () => {
+            // Small delay to let the orientation actually change
+            setTimeout(() => {
+                const video = document.getElementById('video');
+                const canvas = document.getElementById('canvas');
+                if (video.srcObject) {
+                    // Reset dimensions after orientation change
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                }
+            }, 300);
+        });
+    });
+    </script>
+    <script src="script.js" defer></script>
+</body>
+</html>
